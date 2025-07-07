@@ -17,6 +17,7 @@ def run_python_file(working_directory, file_path):
             result = subprocess.run(
                 ["python3", path],
                 capture_output=True,
+                text=True,
                 timeout=30,
                 cwd=working_directory,
                 encoding='utf-8'
@@ -47,14 +48,15 @@ def run_python_file(working_directory, file_path):
 
 schema_run_python_file = types.FunctionDeclaration(
     name="run_python_file",
-    description="Runs the specified python file, constrained to the working directory. Returns the contents of stdout, stderr, and the exit code, if they are not 0 or empty",
+    description="Executes a Python file within the working directory and returns the output from the interpreter.",
     parameters=types.Schema(
         type=types.Type.OBJECT,
         properties={
             "file_path": types.Schema(
                 type=types.Type.STRING,
-                description="The path to the python file to execute, relative to the working directory. If not provided, or if file does not end in '.py' an error is returned.",
+                description="Path to the Python file to execute, relative to the working directory.",
             ),
         },
+        required=["file_path"],
     ),
 )
