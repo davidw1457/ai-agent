@@ -4,20 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from call_function import available_functions, call_function
-
-system_prompt = """
-You are a helpful AI coding agent.
-
-When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
-
-- List files and directories
-- Read file contents
-- Execute Python files with optional arguments
-- Write or overwrite files
-
-All paths you provide should be relative to the working directory. You do not need to specify the working direcctory iin your function calls as it is automatically injected for security reasons.
-"""
-model_name = "gemini-2.0-flash-001"
+from constants import SYSTEM_PROMPT, ITERATIONS, MODEL_NAME
 
 def main():
     load_dotenv()
@@ -37,30 +24,53 @@ def main():
 
     if verbose:
         print(f"User prompt: {user_prompt}")
-    response = generate_content(client, messages, verbose)
-    print(response)
+
+    iteration = 0
+    while 1 == 1:
+        iteration += 1
+        if iteration > ITERATIONS:
+            print(f"Maximum iterations ({MAX_ITERS}) reached.")
+            sys.exit(1)
+
+        try:
+            response = generate_content(client, messages, verbose)
+            if response:
+                print(response)
+                break
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
+
 
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
-        model=model_name,
+        model=MODEL_NAME,
         contents=messages,
         config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
+            tools=[available_functions], system_instruction=SYSTEM_PROMPT
         ),
     )
 
-    if not response.function_calls is None:
-        for fc in response.function_calls:
-            function_return = call_function(fc, verbose)
-            if not function_return.parts[0].function_response.response:
-                raise Exception(f"Error calling {fc.name} with {fc.args}")
-            elif verbose:
-                print(f"-> {function_return.parts[0].function_response.response}")
     if verbose:
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    return response.text
+    if response.candidates:
+        for candidate in response.candidates:
+            messages.append(candidate.content)
+
+    function_returns = []
+    if not response.function_calls is None:
+        for fc in response.function_calls:
+            function_return = call_function(fc, verbose)
+            if not function_return.parts or not function_return.parts[0].function_response.response:
+                raise Exception(f"Error calling {fc.name} with {fc.args}")
+            if verbose:
+                print(f"-> {function_return.parts[0].function_response.response}")
+            function_returns.append(function_return.parts[0])
+    else:
+        return response.text
+
+    messages.append(types.Content(role="tool", parts=function_returns))
 
 if __name__ == "__main__":
     main()

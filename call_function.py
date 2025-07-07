@@ -3,15 +3,14 @@ from functions.get_files_info import schema_get_files_info, get_files_info
 from functions.get_file_content import schema_get_file_content, get_file_content
 from functions.run_python_file import schema_run_python_file, run_python_file
 from functions.write_file import schema_write_file, write_file
+from constants import WORKING_DIRECTORY
 
-functions = {
+FUNCTIONS = {
     "get_files_info": get_files_info,
     "get_file_content": get_file_content,
     "run_python_file": run_python_file,
     "write_file": write_file,
 }
-
-working_directory = "./calculator"
 
 def call_function(function_call_part, verbose=False):
     if verbose:
@@ -19,8 +18,8 @@ def call_function(function_call_part, verbose=False):
     else:
         print(f" - Calling function: {function_call_part.name}")
 
-    if function_call_part.name in functions:
-        func = functions[function_call_part.name]
+    if function_call_part.name in FUNCTIONS:
+        func = FUNCTIONS[function_call_part.name]
     else:
         return types.Content(
             role="tool",
@@ -31,8 +30,11 @@ def call_function(function_call_part, verbose=False):
                 )
             ],
         )
-        
-    function_result = func(working_directory, **function_call_part.args)
+
+    args = dict(function_call_part.args)
+    args["working_directory"] = WORKING_DIRECTORY
+
+    function_result = func(**args)
     return types.Content(
         role="tool",
         parts=[
